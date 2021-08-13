@@ -49,7 +49,7 @@ function sendAndClear(message) {
 
 function updateGraph(msg) { // Update chat-panel and list of connected users
     let data = JSON.parse(msg.data);
-    console.log("Received message:", data.action)
+    //console.log("Received message:", data.action)
     switch (data.action){
     case "new_node":
         graph.addNode(data.node_id);
@@ -74,9 +74,7 @@ function updateGraph(msg) { // Update chat-panel and list of connected users
         renderer.getGraphics().getNodeUI(data.nodeId).attr("fill", colors[10]);
     break;
     case "reset_graph" :
-        graph.forEachNode(function(node){
-            graph.removeNode(node);
-        });
+        graph.clear();
     break;
     case "deactivate_node":
         renderer.getGraphics().getNodeUI(data.nodeId).attr("fill", colors[9]);

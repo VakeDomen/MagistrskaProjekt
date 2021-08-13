@@ -5,12 +5,9 @@ import com.sun.tools.jconsole.JConsolePlugin;
 import com.vakedomen.events.*;
 import org.jgrapht.alg.util.Triple;
 
-import java.sql.Time;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import static com.vakedomen.Util.findNodeIndexFromPath;
 
 public class Node {
     private String id;
@@ -19,6 +16,7 @@ public class Node {
     private boolean active;
     private int simCount;
     private ArrayList<Message> ackQue = new ArrayList<>();
+    private ArrayList<String> messageHashes = new ArrayList<>();
 
     public Node(String node_id, int simCount) {
         this.id = node_id;
@@ -36,35 +34,38 @@ public class Node {
     }
 
     public void digestMessage(Message message, Node sender, boolean requireAck) {
-        // random disconnect?
-        if (active && Main.DISCONNECT_ODDS > new Random().nextFloat()) {
-            deactivate();
-        }
-        // HANDLE RECEIVED ACK
-        if (message.getType() == Message.Type.ACK) {
-            ackQue.add(message);
-            System.out.println("[" + this.id.substring(0, 5) + "] Received ack from " + message.getGenerator().getId().substring(0,5));
-            return;
-        }
-        // SEND ACK IF REQUIRED
-        if (requireAck) {
-            Message ack = new Message(this, "", Message.Type.ACK);
-            System.out.println("[" + this.id.substring(0, 5) + "] Sending ack to " + sender.getId().substring(0,5));
-            sendMessage(sender, ack, false);
-        }
+        inform();
 
         if (this.active) {
             Main.broadcastMessage(new MessageReceivedEvent(sender, this));
         } else {
             Main.broadcastMessage(new FailedToSendMessage(sender, this));
         }
-        inform();
+
+        // SEND ACK IF REQUIRED
+        if (requireAck && active) {
+            Message ack = new Message(this, "", Message.Type.ACK);
+            System.out.println("[" + this.id.substring(0, 5) + "] Sending ack to " + sender.getId().substring(0,5));
+            sendMessage(sender, ack, false);
+        }
+        // HANDLE RECEIVED ACK
+        if (message.getType() == Message.Type.ACK) {
+            ackQue.add(message);
+            System.out.println("[" + this.id.substring(0, 5) + "] Received ack from " + sender.getId().substring(0,5));
+            return;
+        }
+
         // should not propagate message
         if (!this.active || simCount != Main.simCount) {
             return;
         }
-
-        informNodesAsNodeFromPath(message, message.getPath());
+        if (!messageHashes.contains(message.getId())) {
+            messageHashes.add(message.getId());
+            if (requireAck) {
+                System.out.println("[" + this.id.substring(0, 5) + "] MESSAGE FROM NEIGHBOUR FIRST " + sender.getId().substring(0,5));
+            }
+            informNodesAsNodeFromPath(message, message.getPath());
+        }
     }
 
     private void informNodesAsNodeFromPath(Message message, String path) {
@@ -72,8 +73,8 @@ public class Node {
                 Util.generateInitialReceiverList(network, message.getGenerator()),
                 Util.hashToSeed(message.getId())
         );
-
         Triple<Node, Node, String > recipients = Util.calculateRecipients(receivers, path);
+
         if (recipients.getFirst() != null) {
             System.out.println("[" + this.id.substring(0, 5) + "] Informing fist child (" + recipients.getFirst().getId().substring(0,5) + ")");
             Message message0 = new Message(message.getId(), message.getGenerator(), message.getPath() + "0", Message.Type.DATA);
@@ -88,27 +89,32 @@ public class Node {
         }else {
             System.out.println("[" + this.id.substring(0, 5) + "] No second child!");
         }
-/*
+
         if (recipients.getThird() != null) {
-            System.out.println("[" + this.id.substring(0, 5) + "] Informing neighbour (" + recipients.getSecond().getId().substring(0,5) + ")");
-            Node neighbour = receivers.get(Util.findNodeIndexFromPath(recipients.getThird()) - 1);
-            Message message2 = new Message(message.getId(), message.getGenerator(), message.getPath(), Message.Type.DATA);
+            Node neighbour = receivers.get(Util.findNodeIndexFromPath(recipients.getThird()) - 2);
+            System.out.println("[" + this.id.substring(0, 5) + "] Informing neighbour (" + neighbour.getId().substring(0,5) + ") PATH: " + path + " -> " + recipients.getThird());
+            System.out.println("");
+            Message message2 = new Message(message.getId(), message.getGenerator(), recipients.getThird(), Message.Type.DATA);
             sendMessage(neighbour, message2, true);
-            //Runnable task = () -> checkAck(neighbour, recipients.getThird(), message);
-            //Main.executor.schedule(task, Main.MAXIMUM_LATENCY + 100, TimeUnit.MILLISECONDS);
+            Runnable task = () -> checkAck(neighbour, recipients.getThird(), message);
+            Main.executor.schedule(task, Main.ACK_WAIT_TIME + 100, TimeUnit.MILLISECONDS);
         }
-        
- */
+
+
     }
 
     private void checkAck(Node neighbour, String neighboursPath, Message originalMessage) {
+        System.out.println("[" + this.id.substring(0, 5) + "] Checking neighbour ACK paket (" + neighbour.getId().substring(0,5) + ") NEIGH-PATH: " + neighboursPath);
+
         // if we received ack, we remove it from the que in return
         for (Message message : ackQue) {
             if (message.getGenerator() == neighbour) {
                 ackQue.remove(message);
+                System.out.println("[" + this.id.substring(0, 5) + "] ACK Acquired! (" + neighbour.getId().substring(0,5) + ") NEIGH-PATH: " + neighboursPath);
                 return;
             }
         }
+        System.out.println("[" + this.id.substring(0, 5) + "] NO ACK PACKET!! (" + neighbour.getId().substring(0,5) + ") NEIGH-PATH: " + neighboursPath + " | INFORMING CHILDREN!");
         // else in the name of our neighbour inform his children
         informNodesAsNodeFromPath(originalMessage, neighboursPath);
     }
@@ -122,20 +128,23 @@ public class Node {
     }
 
     public void sendMessage(Node receiver, final Message message, final boolean requireAck) {
-        if (this.simCount != Main.simCount) {
-            return;
+        if (this.simCount != Main.simCount && message.getType() == Message.Type.DATA) {
+            System.out.println("------------ OLD SIMULATION MESSAGE! NOT SENT! -----------");
+            //return;
         }
         final Node sender = this;
+        final boolean ack = requireAck;
         if (message.getType() != Message.Type.ACK) {
             Main.broadcastMessage(new MessageSentEvent(this, receiver));
         }
-        Runnable task = () -> receiver.digestMessage(message, sender, requireAck);
+        Runnable task = () -> receiver.digestMessage(message, sender, ack);
         Main.executor.schedule(task, Util.calcLatencyBetweenNodes(sender, receiver), TimeUnit.MILLISECONDS);
     }
 
     public void deactivate() {
-        this.active = false;
-        Main.broadcastMessage(new DeactivateNodeEvent(this));
+        if(this.active) {
+            this.active = false;
+        }
     }
 
     public void generateMessage() {
@@ -152,6 +161,8 @@ public class Node {
         Triple<Node, Node, String > recipients = Util.calculateRecipients(nodes, "");
         sendMessage(recipients.getFirst(), message0, false);
         sendMessage(recipients.getSecond(), message1, false);
+
+        System.out.println(nodes.stream().map((Node n) -> n.getId().substring(0, 5)).collect(Collectors.toList()));
     }
 
     public boolean isInformed() {

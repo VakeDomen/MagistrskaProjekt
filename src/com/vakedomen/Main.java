@@ -7,6 +7,7 @@ import io.javalin.websocket.WsContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -14,11 +15,12 @@ import java.util.stream.Collectors;
 
 public class Main {
 
-    static final int MAX_SIM_COUNT = 5;
-    static final int NETWORK_SIZE = 16;
+    public static final int ACK_WAIT_TIME = 1300;
+    static final int MAX_SIM_COUNT = 50;
+    static final int NETWORK_SIZE = 1024;
     static final int MINIMUM_LATENCY = 300;
     static final int MAXIMUM_LATENCY = 600;
-    static final float DISCONNECT_ODDS = 0.00f;
+    static final float DISCONNECT_ODDS = 0.1f;
 
     private static Map<WsContext, String> userUsernameMap = new ConcurrentHashMap<>();
     private static Gson gson = new Gson();
@@ -50,7 +52,7 @@ public class Main {
             });
 
             ws.onMessage(ctx -> {
-                if (ctx.message().equals("start")) run();
+                if (ctx.message().equals("start")) run(0);
             });
         });
     }
@@ -82,7 +84,8 @@ public class Main {
 
     private static void generateNodes() {
         for (int i = 0 ; i < NETWORK_SIZE ; i++) {
-            Node node = new Node(Util.generateNodeId(i), simCount);
+            long t = System.currentTimeMillis();
+            Node node = new Node(Util.generateNodeId(i + t + ""), simCount);
             network.add(node);
             Event newNodeEvent = new NewNodeEvent(node);
             broadcastMessage(newNodeEvent);
@@ -100,18 +103,28 @@ public class Main {
     }
 
     public static void checkEndPropagation() {
-        //List<String> f = network.stream().filter((Node n) -> !n.isInformed()).map((Node n) -> n.getId().substring(0,5)).collect(Collectors.toList());
+        if (informedCount > Math.floor(NETWORK_SIZE * 0.95)) {
+            List<String> f = network.stream().filter((Node n) -> !n.isInformed()).map((Node n) -> n.getId().substring(0,5)).collect(Collectors.toList());
+            System.out.println("[MAIN] still to inform: " + f.stream().map((String s) -> s.substring(0, 5)).collect(Collectors.toList()));
+        }
         if (informedCount >= NETWORK_SIZE) {
-            if (simCount < MAX_SIM_COUNT) run();
+            if (simCount < MAX_SIM_COUNT) run(2000);
+            else System.out.println("[MAIN] Out of SIM_COUNT");
         }
     }
 
-    private static void run() {
+    private static void run(int delay) {
         try {
+            Thread.sleep(delay);
             resetGraph();
             Thread.sleep(1000);
             setupGraph();
             Thread.sleep(2000);
+            for (Node n : network) {
+                if (Main.DISCONNECT_ODDS > new Random().nextFloat()) {
+                    n.deactivate();
+                }
+            }
             startSimulation();
         } catch (InterruptedException e) {
             e.printStackTrace();

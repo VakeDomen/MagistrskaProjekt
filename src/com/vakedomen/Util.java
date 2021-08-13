@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 public class Util {
     private static Random r = new Random();
 
-    public static String generateNodeId(int i){
+    public static String generateNodeId(String i){
         return hash("prefix" + i);
     }
 
@@ -62,7 +62,7 @@ public class Util {
         Node child1 = nodeIndex * 2 - 2 < receivers.size() ? receivers.get(nodeIndex * 2 - 2) : null;
         Node child2 = nodeIndex * 2 - 1 < receivers.size() ? receivers.get(nodeIndex * 2 - 1) : null;
         String pathToNeighbour = retracePathOneNodeLeft(path);
-        return new Triple<>(child1, child2, path);
+        return new Triple<>(child1, child2, pathToNeighbour);
     }
 
     private static String retracePathOneNodeLeft(String path) {
