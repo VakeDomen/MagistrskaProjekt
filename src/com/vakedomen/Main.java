@@ -14,10 +14,11 @@ import java.util.stream.Collectors;
 
 public class Main {
 
-    static final int MAX_SIM_COUNT = 2;
+    static final int MAX_SIM_COUNT = 5;
     static final int NETWORK_SIZE = 16;
     static final int MINIMUM_LATENCY = 300;
     static final int MAXIMUM_LATENCY = 600;
+    static final float DISCONNECT_ODDS = 0.00f;
 
     private static Map<WsContext, String> userUsernameMap = new ConcurrentHashMap<>();
     private static Gson gson = new Gson();
@@ -59,7 +60,7 @@ public class Main {
         broadcastMessage(new ResetGraphEvent());
         informedCount = 0;
         simCount++;
-        network.forEach(node -> node.deactivate());
+        //network.forEach(node -> node.deactivate());
         network = new ArrayList<>();
     }
 
@@ -99,21 +100,21 @@ public class Main {
     }
 
     public static void checkEndPropagation() {
-        List<String> f = network.stream().filter((Node n) -> !n.isInformed()).map((Node n) -> n.getId().substring(0,5)).collect(Collectors.toList());
-        System.out.println("Still to inform: " + f);
+        //List<String> f = network.stream().filter((Node n) -> !n.isInformed()).map((Node n) -> n.getId().substring(0,5)).collect(Collectors.toList());
         if (informedCount >= NETWORK_SIZE) {
             if (simCount < MAX_SIM_COUNT) run();
         }
     }
 
     private static void run() {
-        resetGraph();
         try {
+            resetGraph();
             Thread.sleep(1000);
+            setupGraph();
+            Thread.sleep(2000);
+            startSimulation();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        setupGraph();
-        startSimulation();
     }
 }

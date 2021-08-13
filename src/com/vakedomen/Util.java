@@ -50,7 +50,6 @@ public class Util {
         r.setSeed(seed);
         for (int i = ids.size() - 1; i > 0; i--) {
             int index = r.nextInt(i + 1);
-            // Simple swap
             Node tmp = ids.get(i);
             ids.set(i, ids.get(index));
             ids.set(index, tmp);
@@ -58,21 +57,32 @@ public class Util {
         return ids;
     }
 
-    public static Triple<Node, Node, Node> calculateRecipients(ArrayList<Node> receivers, String path) {
-        //System.out.println("Path " + path);
+    public static Triple<Node, Node, String> calculateRecipients(ArrayList<Node> receivers, String path) {
+        int nodeIndex = findNodeIndexFromPath(path);
+        Node child1 = nodeIndex * 2 - 2 < receivers.size() ? receivers.get(nodeIndex * 2 - 2) : null;
+        Node child2 = nodeIndex * 2 - 1 < receivers.size() ? receivers.get(nodeIndex * 2 - 1) : null;
+        String pathToNeighbour = retracePathOneNodeLeft(path);
+        return new Triple<>(child1, child2, path);
+    }
+
+    private static String retracePathOneNodeLeft(String path) {
+        StringBuilder pathToNeighbour = new StringBuilder(path);
+        for (int i = path.length() - 1 ; i >= 0 ; i--) {
+            if (path.charAt(i) == '0') {
+                pathToNeighbour.setCharAt(i, '1');
+                break;
+            }
+            pathToNeighbour.setCharAt(i, '0');
+        }
+        return pathToNeighbour.toString();
+    }
+
+    public static int findNodeIndexFromPath(String path) {
         int nodeIndex = 1;
         for (int i = 0 ; i < path.length() ; i++) {
-            if (path.charAt(i) == '0') {
-                nodeIndex = nodeIndex * 2;
-            } else {
-                nodeIndex = nodeIndex * 2 + 1;
-            }
-            System.out.println(nodeIndex);
+            if (path.charAt(i) == '0') nodeIndex = nodeIndex * 2;
+            else nodeIndex = nodeIndex * 2 + 1;
         }
-        //System.out.println(receivers.stream().map((node -> node.getId())).collect(Collectors.toList()));
-        //System.out.println("REC IND: " + ((nodeIndex*2)-1) + "[" +receivers.get((nodeIndex*2-1)).getId().substring(0, 5) + "] " + (nodeIndex*2));
-        Node child1 = nodeIndex * 2 - 1 < receivers.size() ? receivers.get(nodeIndex * 2 - 1) : null;
-        Node child2 = nodeIndex * 2     < receivers.size() ? receivers.get(nodeIndex * 2)     : null;
-        return new Triple<>(child1, child2, child2);
+        return nodeIndex;
     }
 }

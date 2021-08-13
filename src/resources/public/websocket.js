@@ -2,11 +2,11 @@
 let id = id => document.getElementById(id);
 var config = {
     springLength : 10,
-    springCoeff :  1e-4,
-    dragCoeff : 0.02,
+    springCoeff :  1e-7,
+    dragCoeff : 0.03,
     timestep : 28,
     pause_rendering : !1,
-    gravity : -1
+    gravity : -0.2
 }
 
 var graph = Viva.Graph.graph();
@@ -60,6 +60,16 @@ function updateGraph(msg) { // Update chat-panel and list of connected users
     case "message_sent" :
         graph.addLink(data.source, data.destination);
     break;
+    case "message_not_sent" :
+        const o = graph.getNode(data.source);
+        for (const link of o.links) {
+            if (link.toId == data.destination) {
+                graph.removeLink(link);
+                renderer.getGraphics().getNodeUI(data.destination).attr("fill", colors[9]);
+                break;
+            }
+        }
+    break;
     case "new_message_generated" :
         renderer.getGraphics().getNodeUI(data.nodeId).attr("fill", colors[10]);
     break;
@@ -74,7 +84,6 @@ function updateGraph(msg) { // Update chat-panel and list of connected users
     break;
     case "message_received" :
         const origin = graph.getNode(data.source);
-        console.log(origin);
         for (const link of origin.links) {
             if (link.toId == data.destination) {
                 graph.removeLink(link);
