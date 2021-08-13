@@ -5,16 +5,17 @@ import io.javalin.Javalin;
 import io.javalin.websocket.WsContext;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Collectors;
 
 public class Main {
 
     static final int MAX_SIM_COUNT = 2;
-    static final int NETWORK_SIZE = 10;
+    static final int NETWORK_SIZE = 16;
     static final int MINIMUM_LATENCY = 300;
     static final int MAXIMUM_LATENCY = 600;
 
@@ -94,10 +95,12 @@ public class Main {
     }
 
     private static void startSimulation() {
-        network.get(0).sendMessage();
+        network.get(0).generateMessage();
     }
 
     public static void checkEndPropagation() {
+        List<String> f = network.stream().filter((Node n) -> !n.isInformed()).map((Node n) -> n.getId().substring(0,5)).collect(Collectors.toList());
+        System.out.println("Still to inform: " + f);
         if (informedCount >= NETWORK_SIZE) {
             if (simCount < MAX_SIM_COUNT) run();
         }

@@ -61,7 +61,7 @@ function updateGraph(msg) { // Update chat-panel and list of connected users
         graph.addLink(data.source, data.destination);
     break;
     case "new_message_generated" :
-        renderer.getGraphics().getNodeUI(data.nodeId).attr("fill", colors[4]);
+        renderer.getGraphics().getNodeUI(data.nodeId).attr("fill", colors[10]);
     break;
     case "reset_graph" :
         graph.forEachNode(function(node){
@@ -69,7 +69,7 @@ function updateGraph(msg) { // Update chat-panel and list of connected users
         });
     break;
     case "deactivate_node":
-        renderer.getGraphics().getNodeUI(data.nodeId).attr("fill", colors[2]);
+        renderer.getGraphics().getNodeUI(data.nodeId).attr("fill", colors[9]);
 
     break;
     case "message_received" :
