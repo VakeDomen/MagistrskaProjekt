@@ -73,18 +73,19 @@ public class Node {
                 Util.generateInitialReceiverList(network, message.getGenerator()),
                 Util.hashToSeed(message.getId())
         );
+        System.out.println("rec " + receivers.get(0) + " " + receivers.get(1) + " " + receivers.get(2));
         Triple<Node, Node, String > recipients = Util.calculateRecipients(receivers, path);
 
         if (recipients.getFirst() != null) {
             System.out.println("[" + this.id.substring(0, 5) + "] Informing fist child (" + recipients.getFirst().getId().substring(0,5) + ")");
-            Message message0 = new Message(message.getId(), message.getGenerator(), message.getPath() + "0", Message.Type.DATA);
+            Message message0 = new Message(message.getId(), message.getGenerator(), path + "0", Message.Type.DATA);
             sendMessage(recipients.getFirst(), message0, false);
         } else {
             System.out.println("[" + this.id.substring(0, 5) + "] No first child!");
         }
         if (recipients.getSecond() != null) {
             System.out.println("[" + this.id.substring(0, 5) + "] Informing second child (" + recipients.getSecond().getId().substring(0,5) + ")");
-            Message message1 = new Message(message.getId(), message.getGenerator(), message.getPath() + "1", Message.Type.DATA);
+            Message message1 = new Message(message.getId(), message.getGenerator(), path + "1", Message.Type.DATA);
             sendMessage(recipients.getSecond(), message1, false);
         }else {
             System.out.println("[" + this.id.substring(0, 5) + "] No second child!");
@@ -97,7 +98,7 @@ public class Node {
             Message message2 = new Message(message.getId(), message.getGenerator(), recipients.getThird(), Message.Type.DATA);
             sendMessage(neighbour, message2, true);
             Runnable task = () -> checkAck(neighbour, recipients.getThird(), message);
-            Main.executor.schedule(task, Main.ACK_WAIT_TIME + 100, TimeUnit.MILLISECONDS);
+            Main.executor.schedule(task, Main.ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
         }
 
 
@@ -105,7 +106,6 @@ public class Node {
 
     private void checkAck(Node neighbour, String neighboursPath, Message originalMessage) {
         System.out.println("[" + this.id.substring(0, 5) + "] Checking neighbour ACK paket (" + neighbour.getId().substring(0,5) + ") NEIGH-PATH: " + neighboursPath);
-
         // if we received ack, we remove it from the que in return
         for (Message message : ackQue) {
             if (message.getGenerator() == neighbour) {
@@ -129,7 +129,7 @@ public class Node {
 
     public void sendMessage(Node receiver, final Message message, final boolean requireAck) {
         if (this.simCount != Main.simCount && message.getType() == Message.Type.DATA) {
-            System.out.println("------------ OLD SIMULATION MESSAGE! NOT SENT! -----------");
+            //System.out.println("------------ OLD SIMULATION MESSAGE! NOT SENT! -----------");
             //return;
         }
         final Node sender = this;
@@ -144,6 +144,7 @@ public class Node {
     public void deactivate() {
         if(this.active) {
             this.active = false;
+            Main.brokenNodes++;
         }
     }
 
@@ -159,10 +160,12 @@ public class Node {
         );
         // Child1, Child2, Neighbour to check
         Triple<Node, Node, String > recipients = Util.calculateRecipients(nodes, "");
-        sendMessage(recipients.getFirst(), message0, false);
-        sendMessage(recipients.getSecond(), message1, false);
-
-        System.out.println(nodes.stream().map((Node n) -> n.getId().substring(0, 5)).collect(Collectors.toList()));
+        sendMessage(recipients.getFirst(), message0, true);
+        sendMessage(recipients.getSecond(), message1, true);
+        Runnable task0 = () -> checkAck(recipients.getFirst(), "0", message0);
+        Runnable task1 = () -> checkAck(recipients.getSecond(), "1", message1);
+        Main.executor.schedule(task0, Main.ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
+        Main.executor.schedule(task1, Main.ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
     }
 
     public boolean isInformed() {

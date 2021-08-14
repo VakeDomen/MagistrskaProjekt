@@ -76,9 +76,18 @@ function updateGraph(msg) { // Update chat-panel and list of connected users
     case "reset_graph" :
         graph.clear();
     break;
+    case "sim_successful" :
+        console.log(data);
+        var line = "-> <span class='key'> Simulation " +  data.simNumber + " successfully completed!</span>"
+        id("right").innerHTML+= line;
+    break;
+    case "sim_failed" :
+        console.log(data);
+        var line = "-> <br><span class='key'> Simulation " +  data.simNumber + " failed! Number of uninformed nodes: " + data.uninformed + "</span>"
+            id("right").innerHTML+= line;
+    break;
     case "deactivate_node":
         renderer.getGraphics().getNodeUI(data.nodeId).attr("fill", colors[9]);
-
     break;
     case "message_received" :
         const origin = graph.getNode(data.source);
