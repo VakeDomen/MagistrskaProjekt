@@ -1,17 +1,18 @@
 package com.vakedomen;
 
-import com.sun.tools.jconsole.JConsoleContext;
-import com.sun.tools.jconsole.JConsolePlugin;
 import com.vakedomen.events.*;
 import org.jgrapht.alg.util.Triple;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 public class Node {
     private String id;
+    // used in TREE algorithm
     private ArrayList<Node> network;
+    // used in FLOOD algorithm
+    private ArrayList<Node> neighbours;
+
     private boolean informed;
     private boolean active;
     private int simCount;
@@ -23,6 +24,7 @@ public class Node {
         this.informed = false;
         this.active = true;
         this.simCount = simCount;
+        this.neighbours = new ArrayList<>();
     }
 
     public String getId() {
@@ -34,17 +36,44 @@ public class Node {
     }
 
     public void digestMessage(Message message, Node sender, boolean requireAck) {
-        inform();
-
-        if (this.active) {
-            Main.broadcastMessage(new MessageReceivedEvent(sender, this));
-        } else {
-            Main.broadcastMessage(new FailedToSendMessage(sender, this));
+        switch (Main.ALGO){
+            case TREE:
+                digestTree(message, sender, requireAck);
+                break;
+            case FLOOD:
+                digestFlood(message, sender);
+                break;
+            default:
+                throw new IllegalStateException("Unexpected value: " + Main.ALGO);
         }
+    }
+
+    private void digestFlood(Message message, Node sender) {
+        inform(message, sender);
+
+        if (!this.active || simCount != Main.simCount) {
+            return;
+        }
+
+        if (!messageHashes.contains(message.getId())) {
+            messageHashes.add(message.getId());
+            List<Node> receivers = getReceiversFlood();
+            for (Node n : receivers) {
+                Message m = new Message(message.getId(), message.getGenerator(), message.getPath() + "0", Message.Type.DATA, message.getHop() + 1);
+                sendMessage(n, m, false);
+            }
+        }
+
+    }
+
+    private void digestTree(Message message, Node sender, boolean requireAck) {
+        inform(message, sender);
+
+
 
         // SEND ACK IF REQUIRED
         if (requireAck && active) {
-            Message ack = new Message(this, "", Message.Type.ACK);
+            Message ack = new Message(this, "", Message.Type.ACK, 1);
             System.out.println("[" + this.id.substring(0, 5) + "] Sending ack to " + sender.getId().substring(0,5));
             sendMessage(sender, ack, false);
         }
@@ -78,14 +107,14 @@ public class Node {
 
         if (recipients.getFirst() != null) {
             System.out.println("[" + this.id.substring(0, 5) + "] Informing fist child (" + recipients.getFirst().getId().substring(0,5) + ")");
-            Message message0 = new Message(message.getId(), message.getGenerator(), path + "0", Message.Type.DATA);
+            Message message0 = new Message(message.getId(), message.getGenerator(), path + "0", Message.Type.DATA, message.getHop() + 1);
             sendMessage(recipients.getFirst(), message0, false);
         } else {
             System.out.println("[" + this.id.substring(0, 5) + "] No first child!");
         }
         if (recipients.getSecond() != null) {
             System.out.println("[" + this.id.substring(0, 5) + "] Informing second child (" + recipients.getSecond().getId().substring(0,5) + ")");
-            Message message1 = new Message(message.getId(), message.getGenerator(), path + "1", Message.Type.DATA);
+            Message message1 = new Message(message.getId(), message.getGenerator(), path + "1", Message.Type.DATA, message.getHop() + 1);
             sendMessage(recipients.getSecond(), message1, false);
         }else {
             System.out.println("[" + this.id.substring(0, 5) + "] No second child!");
@@ -95,9 +124,9 @@ public class Node {
             Node neighbour = receivers.get(Util.findNodeIndexFromPath(recipients.getThird()) - 2);
             System.out.println("[" + this.id.substring(0, 5) + "] Informing neighbour (" + neighbour.getId().substring(0,5) + ") PATH: " + path + " -> " + recipients.getThird());
             System.out.println("");
-            Message message2 = new Message(message.getId(), message.getGenerator(), recipients.getThird(), Message.Type.DATA);
+            Message message2 = new Message(message.getId(), message.getGenerator(), recipients.getThird(), Message.Type.DATA, message.getHop() + 1);
             sendMessage(neighbour, message2, true);
-            Runnable task = () -> checkAck(neighbour, recipients.getThird(), message);
+            Runnable task = () -> checkAck(neighbour, recipients.getThird(), message2);
             Main.executor.schedule(task, Main.ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
         }
 
@@ -119,10 +148,19 @@ public class Node {
         informNodesAsNodeFromPath(originalMessage, neighboursPath);
     }
 
-    private void inform() {
+    private void inform(Message message, Node sender) {
+        if (this.active) {
+            Main.broadcastMessage(new MessageReceivedEvent(sender, this));
+        } else {
+            Main.broadcastMessage(new FailedToSendMessage(sender, this));
+        }
         if (!this.informed) {
             this.informed = true;
             Main.informedCount++;
+            Main.hops.add(message.getHop());
+            if (message.getHop() > Main.maxHop) {
+                Main.maxHop = message.getHop();
+            }
         }
         Main.checkEndPropagation();
     }
@@ -139,6 +177,7 @@ public class Node {
         }
         Runnable task = () -> receiver.digestMessage(message, sender, ack);
         Main.executor.schedule(task, Util.calcLatencyBetweenNodes(sender, receiver), TimeUnit.MILLISECONDS);
+        Main.sentMessages++;
     }
 
     public void deactivate() {
@@ -149,11 +188,51 @@ public class Node {
     }
 
     public void generateMessage() {
-        inform();
+        switch (Main.ALGO){
+            case TREE:
+                generateMessageTree();
+                break;
+            case FLOOD:
+                generateMessageFlood();
+                break;
+            default:
+                throw new IllegalStateException("Unexpected value: " + Main.ALGO);
+        }
+
+    }
+
+    private void generateMessageFlood() {
+
         Main.broadcastMessage(new MessageGeneratedEvent(this));
         String messageHash = Util.hash("" + System.currentTimeMillis());
-        Message message0 = new Message(messageHash, this, "0", Message.Type.DATA);
-        Message message1 = new Message(messageHash, this, "1", Message.Type.DATA);
+        List<Node> receivers = getReceiversFlood();
+        inform(
+                new Message(messageHash,this, "", Message.Type.DATA,0),
+                this
+        );
+        for (Node n : receivers) {
+            Message message = new Message(messageHash, this, "0", Message.Type.DATA, 1);
+            sendMessage(n, message, false);
+        }
+    }
+
+    private List<Node> getReceiversFlood() {
+        int index = new Random().nextInt(neighbours.size());
+        if (index <= neighbours.size() - Main.FLOOD_FAN_OUT) {
+            return neighbours.subList(index, index + Main.FLOOD_FAN_OUT);
+        }
+        int diff = index - (neighbours.size() - Main.FLOOD_FAN_OUT);
+        List<Node> out = neighbours.subList(index, neighbours.size());
+        out.addAll(neighbours.subList(0, diff));
+        return out;
+    }
+
+    private void generateMessageTree() {
+
+        Main.broadcastMessage(new MessageGeneratedEvent(this));
+        String messageHash = Util.hash("" + System.currentTimeMillis());
+        Message message0 = new Message(messageHash, this, "0", Message.Type.DATA, 1);
+        Message message1 = new Message(messageHash, this, "1", Message.Type.DATA, 1);
         ArrayList<Node> nodes = Util.pseudoRandomMix(
                 Util.generateInitialReceiverList(network, this),
                 Util.hashToSeed(message1.getId())
@@ -166,10 +245,30 @@ public class Node {
         Runnable task1 = () -> checkAck(recipients.getSecond(), "1", message1);
         Main.executor.schedule(task0, Main.ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
         Main.executor.schedule(task1, Main.ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
+        inform(
+            new Message(messageHash, this, "", Message.Type.DATA, 0),
+                this
+        );
     }
 
     public boolean isInformed() {
         return informed;
+    }
+
+    public void addNeighbours(ArrayList<Node> neigh) {
+        for (Node n : neigh) {
+            neighbours.add(n);
+        }
+    }
+    public boolean addNeighbour(Node neigh) {
+        if (neighbours.contains(neigh)) {
+            return false;
+        }
+        neighbours.add(neigh);
+        return true;
+    }
+    public ArrayList<Node> getNeighbours() {
+        return neighbours;
     }
 
 }

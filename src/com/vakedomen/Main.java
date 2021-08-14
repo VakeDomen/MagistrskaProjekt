@@ -4,6 +4,7 @@ import com.vakedomen.events.*;
 import io.javalin.Javalin;
 import io.javalin.websocket.WsContext;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,22 +16,31 @@ import java.util.stream.Collectors;
 
 public class Main {
 
+    public static final String FILE_NAME = "data.csv";
+
     enum Algo {
         TREE,
         FLOOD
     }
-    public static final Algo algo = Algo.TREE;
-    public static final int ACK_WAIT_TIME = 1000;
-    static final int MAX_SIM_COUNT = 50;
-    static final int NETWORK_SIZE = 1300;
-    static final int MINIMUM_LATENCY = 300;
-    static final int MAXIMUM_LATENCY = 600;
-    static final float DISCONNECT_ODDS = 0.05f;
+
+    public static final boolean CLEAR_DATA = true;
+    public static final boolean SAVE_DATA = true;
+
+    public static Algo ALGO = Algo.TREE;
+    public static int ACK_WAIT_TIME = 1100;
+    static int MAX_SIM_COUNT = 10;
+    static int NETWORK_SIZE = 800;
+    static int MINIMUM_LATENCY = 300;
+    static int MAXIMUM_LATENCY = 500;
+    static float DISCONNECT_ODDS = 0.03f;
+    static int FLOOD_CONNECTIONS = 7;
+    static int FLOOD_FAN_OUT = 5;
 
     private static Map<WsContext, String> userUsernameMap = new ConcurrentHashMap<>();
     private static Gson gson = new Gson();
     private static ArrayList<Node> network = new ArrayList<>();
     private static boolean simEnd = false;
+    private static Random r = new Random();
 
     public static ScheduledExecutorService executor;
     public static int informedCount;
@@ -38,16 +48,22 @@ public class Main {
 
     public static int informedChildren = 0;
     public static int brokenNodes = 0;
+    public static int sentMessages = 0;
+    public static ArrayList<Integer> hops = new ArrayList<Integer>();
+    public static int maxHop = 0;
+    public static long t1;
 
 
     public static void main(String[] args) {
-	// write your code here
-        executor = Executors.newSingleThreadScheduledExecutor();
+        if (SAVE_DATA) {
+            Util.createCsvFile();
+            Util.log("SIM_ID;ALG;NODE_COUNT;UNINFORMED_COUNT;DISCONNECT_ODDS;DISCONNECT_COUNT;MSG_SENT;AVG_HOP_COUNT;MAX_HOP_COUNT;TOTAL_TIME_MILLIS;FAN_OUT;MIN_LATENCY;MAX_LATENCY;ACK_WAIT_TIME");
 
+        }
+	    executor = Executors.newSingleThreadScheduledExecutor();
         Javalin app = Javalin.create(config -> {
             config.addStaticFiles("resources/public");
         }).start(5000);
-
         app.ws("/update", ws ->{
 
             ws.onConnect(ctx -> {
@@ -60,7 +76,7 @@ public class Main {
             });
 
             ws.onMessage(ctx -> {
-                if (ctx.message().equals("start")) run(0);
+                if (ctx.message().equals("start")) run();
             });
         });
     }
@@ -73,7 +89,10 @@ public class Main {
         informedCount = 0;
         informedChildren = 0;
         brokenNodes = 0;
-        //network.forEach(node -> node.deactivate());
+        t1 = 0;
+        sentMessages = 0;
+        hops = new ArrayList<>();
+        maxHop = 0;
         network = new ArrayList<>();
     }
 
@@ -83,14 +102,30 @@ public class Main {
         syncNodes();
     }
 
-    private static void connectNodes() {
-        // pride v postev pri floodingu
+    private static void syncNodes() {
+        switch (ALGO) {
+            case TREE -> {
+                for (Node n : network) {
+                    n.setNetwork(network);
+                }
+            }
+            case FLOOD -> {
+                for (Node n : network) {
+
+                    while (n.getNeighbours().size() < FLOOD_CONNECTIONS) {
+                        Node el = randomElement(network);
+                        if (n.addNeighbour(el)) {
+                            el.addNeighbour(n);
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    private static void syncNodes() {
-        for (Node n : network) {
-            n.setNetwork(network);
-        }
+    private static Node randomElement(ArrayList<Node> arrayList) {
+        int index = r.nextInt(arrayList.size());
+        return arrayList.get(index);
     }
 
     private static void generateNodes() {
@@ -118,6 +153,7 @@ public class Main {
             List<String> f = network.stream().filter((Node n) -> !n.isInformed()).map((Node n) -> n.getId().substring(0,5)).collect(Collectors.toList());
             System.out.println("[MAIN] still to inform: " + f.stream().map((String s) -> s.substring(0, 5)).collect(Collectors.toList()));
         }
+        t1 = System.currentTimeMillis();
         if (informedCount >= NETWORK_SIZE) {
             if (!simEnd) {
                 broadcastMessage(new SimSuccessfulEvent(simCount));
@@ -127,42 +163,78 @@ public class Main {
         }
     }
 
-    private static void run(int delay) {
-        simCount = 0;
+    private static void run() {
+        int totalSimCount = 0;
+        Algo[] alg = {Algo.TREE, Algo.FLOOD};
+        int[] networkSizes = {100, 500, 1000, 2000};
+        float[] dcOdds = {0f, 0.5f, 0.1f, 0.25f, 0.5f, 0.75f };
+        int totalSims = alg.length * networkSizes.length * dcOdds.length * MAX_SIM_COUNT;
         try {
-            while (simCount <= MAX_SIM_COUNT) {
-                simCount++;
-                Thread.sleep(delay);
-                resetGraph();
-                Thread.sleep(1000);
-                setupGraph();
-                Thread.sleep(2000);
-                for (Node n : network) {
-                    if (Main.DISCONNECT_ODDS > new Random().nextFloat()) {
-                        n.deactivate();
+            for (Algo algo : alg) {
+                for (int size : networkSizes) {
+                    for (float odds : dcOdds) {
+                        ALGO = algo;
+                        NETWORK_SIZE = size;
+                        DISCONNECT_ODDS = odds;
+                        simCount = 0;
+                        while (simCount < MAX_SIM_COUNT) {
+                            totalSimCount++;
+                            simCount++;
+                            broadcastMessage(new LogEvent("-><span class='key'> Simulation  " + totalSimCount + "/" + totalSims + " started with settings:<br>     - ALGORITHM: &#09;&#09;" + ALGO + "<BR>     - NETWORK SIZE: &#09;&#09;" + NETWORK_SIZE + "<br>     - DISCONNECT ODDS: &#09;" + DISCONNECT_ODDS + "<br>     - REPETITION: &#09;&#09;" + simCount + "/" + MAX_SIM_COUNT));
+                            sim(totalSimCount);
+                        }
                     }
                 }
-                simEnd = false;
-                int simEndCounter = 0;
-                startSimulation();
-
-                while (!simEnd) {
-                    Thread.sleep(1000);
-                    simEndCounter++;
-                    if (simEndCounter > 40) {
-                        simEnd = true;
-                        System.out.println("simcount" + simCount);
-                        broadcastMessage(new SimFialedEvent(
-                                simCount,
-                                network.stream().filter((Node n) -> !n.isInformed()).map((Node n) -> n.getId().substring(0,5)).collect(Collectors.toList()).size()
-                            ));
-                    }
-                }
-
-                Thread.sleep(1000);
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void sim(int id) throws InterruptedException {
+        resetGraph();
+        setupGraph();
+        Thread.sleep(2000);
+        int dcCount = 0;
+        for (Node n : network) {
+            if (Main.DISCONNECT_ODDS > new Random().nextFloat()) {
+                n.deactivate();
+                dcCount++;
+            }
+        }
+        simEnd = false;
+        int simEndCounter = 0;
+        long t0 = System.currentTimeMillis();
+        startSimulation();
+        int uninformed = 0;
+        while (!simEnd) {
+            Thread.sleep(1000);
+            simEndCounter++;
+            if (simEndCounter > 60) {
+                uninformed = network.stream().filter((Node n) -> !n.isInformed()).map((Node n) -> n.getId().substring(0,5)).collect(Collectors.toList()).size();
+                simEnd = true;
+                broadcastMessage(new SimFialedEvent(simCount, 0));
+            }
+        }
+
+        float avgHops = (hops.stream().reduce(0, (a, b) -> a + b) * 1.f) / (hops.size() * 1.f);
+        broadcastMessage(new LogEvent("-><span class='key'> Simulation  " + id + " stats: <br>    - Number of uninformed nodes: &#09;" + uninformed +"<br>    - Average hops: &#09;&#09;&#09;" + avgHops + "<br>    - Max hops: &#09;&#09;&#09;" + maxHop + " <br>    - Sent messages: &#09;&#09;&#09;" + sentMessages + " </span>"));
+        Util.logArg(
+                simCount,
+                ALGO,
+                NETWORK_SIZE,
+                uninformed,
+                DISCONNECT_ODDS,
+                dcCount,
+                sentMessages,
+                avgHops,
+                maxHop,
+                t1 - t0,
+                ALGO == Algo.TREE ? 2 : FLOOD_FAN_OUT,
+                MINIMUM_LATENCY,
+                MAXIMUM_LATENCY,
+                ACK_WAIT_TIME
+        );
+        Thread.sleep(1000);
     }
 }

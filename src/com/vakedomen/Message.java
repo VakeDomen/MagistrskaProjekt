@@ -5,19 +5,22 @@ public class Message {
     private Node generator;
     private String path;
     private Message.Type type;
+    private int hop;
 
-    public Message(Node node, String path, Type t) {
+    public Message(Node node, String path, Type t, int hop) {
         this.id = Util.hash(System.currentTimeMillis() + "");
         this.generator = node;
         this.path = path;
         this.type = t;
+        this.hop = hop;
     }
 
-    public Message(String id, Node node, String path, Type t) {
+    public Message(String id, Node node, String path, Type t, int hop) {
         this.id = id;
         this.generator = node;
         this.path = path;
         this.type = t;
+        this.hop = hop;
     }
 
     public String getId() {
@@ -42,6 +45,10 @@ public class Message {
 
     public void setType(Type type) {
         this.type = type;
+    }
+
+    public int getHop() {
+        return hop;
     }
 
     enum Type {

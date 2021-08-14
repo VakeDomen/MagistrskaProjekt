@@ -1,7 +1,10 @@
 package com.vakedomen;
 
 import org.jgrapht.alg.util.Triple;
+
+import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -84,5 +87,59 @@ public class Util {
             else nodeIndex = nodeIndex * 2 + 1;
         }
         return nodeIndex;
+    }
+
+    public static void log(String row) {
+        if (!Main.SAVE_DATA) {
+            return;
+        }
+        try {
+            FileWriter fw = new FileWriter(Main.FILE_NAME, true);
+            BufferedWriter bw = new BufferedWriter(fw);
+            PrintWriter out = new PrintWriter(bw);
+            out.println(row);
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static  void logArg(int simId, Main.Algo algo, int n, int uninformed, float dbOdds, int dcCount, int nMsg, float avgHop, int maxHop, long totalTime, int fanout, int minLatency, int maxLatency, int ackWaitTime) {
+        String[] args = {
+                simId + "",
+                algo + "",
+                n + "",
+                uninformed + "",
+                dbOdds + "",
+                dcCount + "",
+                nMsg + "",
+                avgHop + "",
+                maxHop + "",
+                totalTime + "",
+                fanout + "",
+                minLatency + "",
+                maxLatency + "",
+                ackWaitTime + ""
+        };
+        log(Arrays.stream(args).reduce("", (a, b) -> a + ";" + b).substring(1));
+    }
+
+    public static void createCsvFile() {
+        try {
+            File myObj = new File(Main.FILE_NAME);
+            if (myObj.createNewFile()) {
+                System.out.println("File created: " + myObj.getName());
+            } else {
+                System.out.println("File already exists.");
+                if (Main.CLEAR_DATA) {
+                    PrintWriter writer = new PrintWriter(myObj);
+                    writer.print("");
+                    writer.close();
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
     }
 }
