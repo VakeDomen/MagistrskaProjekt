@@ -23,16 +23,16 @@ public class Main {
         FLOOD
     }
 
-    public static final boolean CLEAR_DATA = true;
-    public static final boolean SAVE_DATA = true;
+    public static final boolean CLEAR_DATA = false;
+    public static final boolean SAVE_DATA = false;
 
     public static Algo ALGO = Algo.TREE;
     public static int ACK_WAIT_TIME = 1100;
     static int MAX_SIM_COUNT = 10;
-    static int NETWORK_SIZE = 800;
+    static int NETWORK_SIZE = 1500;
     static int MINIMUM_LATENCY = 300;
     static int MAXIMUM_LATENCY = 500;
-    static float DISCONNECT_ODDS = 0.03f;
+    static float DISCONNECT_ODDS = 0.15f;
     static int FLOOD_CONNECTIONS = 7;
     static int FLOOD_FAN_OUT = 5;
 
@@ -167,15 +167,15 @@ public class Main {
         int totalSimCount = 0;
         Algo[] alg = {Algo.TREE, Algo.FLOOD};
         int[] networkSizes = {100, 500, 1000, 2000};
-        float[] dcOdds = {0f, 0.5f, 0.1f, 0.25f, 0.5f, 0.75f };
+        float[] dcOdds = {0f, 0.05f, 0.1f, 0.25f, 0.5f, 0.75f };
         int totalSims = alg.length * networkSizes.length * dcOdds.length * MAX_SIM_COUNT;
         try {
-            for (Algo algo : alg) {
+        /*    for (Algo algo : alg) {
                 for (int size : networkSizes) {
                     for (float odds : dcOdds) {
                         ALGO = algo;
                         NETWORK_SIZE = size;
-                        DISCONNECT_ODDS = odds;
+                        DISCONNECT_ODDS = odds;*/
                         simCount = 0;
                         while (simCount < MAX_SIM_COUNT) {
                             totalSimCount++;
@@ -183,9 +183,9 @@ public class Main {
                             broadcastMessage(new LogEvent("-><span class='key'> Simulation  " + totalSimCount + "/" + totalSims + " started with settings:<br>     - ALGORITHM: &#09;&#09;" + ALGO + "<BR>     - NETWORK SIZE: &#09;&#09;" + NETWORK_SIZE + "<br>     - DISCONNECT ODDS: &#09;" + DISCONNECT_ODDS + "<br>     - REPETITION: &#09;&#09;" + simCount + "/" + MAX_SIM_COUNT));
                             sim(totalSimCount);
                         }
-                    }
+                   /* }
                 }
-            }
+            }*/
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
