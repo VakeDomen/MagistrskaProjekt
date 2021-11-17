@@ -1,7 +1,8 @@
 package com.vakedomen;
 
 import com.vakedomen.events.*;
-import org.jgrapht.alg.util.Triple;
+import com.vakedomen.helpers.Triple;
+import com.vakedomen.helpers.Util;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -103,7 +104,7 @@ public class Node {
                 Util.hashToSeed(message.getId())
         );
         System.out.println("rec " + receivers.get(0) + " " + receivers.get(1) + " " + receivers.get(2));
-        Triple<Node, Node, String > recipients = Util.calculateRecipients(receivers, path);
+        Triple<Node, Node, String> recipients = Util.calculateRecipients(receivers, path);
 
         if (recipients.getFirst() != null) {
             System.out.println("[" + this.id.substring(0, 5) + "] Informing fist child (" + recipients.getFirst().getId().substring(0,5) + ")");

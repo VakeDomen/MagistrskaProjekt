@@ -1,10 +1,10 @@
 package com.vakedomen;
 import com.google.gson.*;
 import com.vakedomen.events.*;
+import com.vakedomen.helpers.Util;
 import io.javalin.Javalin;
 import io.javalin.websocket.WsContext;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +18,7 @@ public class Main {
 
     public static final String FILE_NAME = "data.csv";
 
-    enum Algo {
+    public enum Algo {
         TREE,
         FLOOD
     }
@@ -28,13 +28,13 @@ public class Main {
 
     public static Algo ALGO = Algo.TREE;
     public static int ACK_WAIT_TIME = 1100;
-    static int MAX_SIM_COUNT = 10;
-    static int NETWORK_SIZE = 1500;
-    static int MINIMUM_LATENCY = 300;
-    static int MAXIMUM_LATENCY = 500;
-    static float DISCONNECT_ODDS = 0.15f;
-    static int FLOOD_CONNECTIONS = 7;
-    static int FLOOD_FAN_OUT = 5;
+    public static int MAX_SIM_COUNT = 10;
+    public static int NETWORK_SIZE = 1500;
+    public static int MINIMUM_LATENCY = 300;
+    public static int MAXIMUM_LATENCY = 500;
+    public static float DISCONNECT_ODDS = 0.15f;
+    public static int FLOOD_CONNECTIONS = 7;
+    public static int FLOOD_FAN_OUT = 5;
 
     private static Map<WsContext, String> userUsernameMap = new ConcurrentHashMap<>();
     private static Gson gson = new Gson();

@@ -1,13 +1,13 @@
-package com.vakedomen;
+package com.vakedomen.helpers;
 
-import org.jgrapht.alg.util.Triple;
+import com.vakedomen.Main;
+import com.vakedomen.Node;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
-import java.util.stream.Collectors;
 
 public class Util {
     private static Random r = new Random();

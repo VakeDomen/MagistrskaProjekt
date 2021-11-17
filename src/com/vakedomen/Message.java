@@ -1,5 +1,7 @@
 package com.vakedomen;
 
+import com.vakedomen.helpers.Util;
+
 public class Message {
     private String id;
     private Node generator;
