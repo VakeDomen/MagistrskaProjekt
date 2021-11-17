@@ -1,6 +1,7 @@
 package com.vakedomen.helpers;
 
 import com.vakedomen.Main;
+import com.vakedomen.core.Enums;
 import com.vakedomen.core.Node;
 
 import java.io.*;
@@ -8,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
+
+import static com.vakedomen.config.Run.*;
 
 public class Util {
     private static Random r = new Random();
@@ -35,7 +38,7 @@ public class Util {
     public static int calcLatencyBetweenNodes(Node n1, Node n2) {
         long seed = Util.hashToSeed(Util.hash(Util.mergeIdHash(n1, n2)));
         r.setSeed(seed);
-        return r.nextInt(Main.MAXIMUM_LATENCY - Main.MINIMUM_LATENCY) + Main.MINIMUM_LATENCY;
+        return r.nextInt(MAXIMUM_LATENCY - MINIMUM_LATENCY) + MINIMUM_LATENCY;
     }
 
 
@@ -90,11 +93,11 @@ public class Util {
     }
 
     public static void log(String row) {
-        if (!Main.SAVE_DATA) {
+        if (!SAVE_DATA) {
             return;
         }
         try {
-            FileWriter fw = new FileWriter(Main.FILE_NAME, true);
+            FileWriter fw = new FileWriter(FILE_NAME, true);
             BufferedWriter bw = new BufferedWriter(fw);
             PrintWriter out = new PrintWriter(bw);
             out.println(row);
@@ -104,7 +107,7 @@ public class Util {
         }
     }
 
-    public static  void logArg(int simId, Main.Algo algo, int n, int uninformed, float dbOdds, int dcCount, int nMsg, float avgHop, int maxHop, long totalTime, int fanout, int minLatency, int maxLatency, int ackWaitTime) {
+    public static  void logArg(int simId, Enums.Algo algo, int n, int uninformed, float dbOdds, int dcCount, int nMsg, float avgHop, int maxHop, long totalTime, int fanout, int minLatency, int maxLatency, int ackWaitTime) {
         String[] args = {
                 simId + "",
                 algo + "",
@@ -126,12 +129,12 @@ public class Util {
 
     public static void createCsvFile() {
         try {
-            File myObj = new File(Main.FILE_NAME);
+            File myObj = new File(FILE_NAME);
             if (myObj.createNewFile()) {
                 System.out.println("File created: " + myObj.getName());
             } else {
                 System.out.println("File already exists.");
-                if (Main.CLEAR_DATA) {
+                if (CLEAR_DATA) {
                     PrintWriter writer = new PrintWriter(myObj);
                     writer.print("");
                     writer.close();

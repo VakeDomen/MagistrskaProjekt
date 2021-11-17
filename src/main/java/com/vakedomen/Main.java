@@ -1,5 +1,6 @@
 package com.vakedomen;
 import com.google.gson.*;
+import com.vakedomen.core.Enums;
 import com.vakedomen.core.Node;
 import com.vakedomen.events.*;
 import com.vakedomen.helpers.Util;
@@ -15,29 +16,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
-import static com.vakedomen.Main.Algo.TREE;
+
+import static com.vakedomen.config.Flood.FLOOD_CONNECTIONS;
+import static com.vakedomen.config.Flood.FLOOD_FAN_OUT;
+import static com.vakedomen.config.Run.*;
+import static com.vakedomen.config.Tree.ACK_WAIT_TIME;
+import static com.vakedomen.core.Enums.Algo;
 
 public class Main {
 
-    public static final String FILE_NAME = "data.csv";
+    public static Algo ALGO = Algo.TREE;
 
-    public enum Algo {
-        TREE,
-        FLOOD
-    }
 
-    public static final boolean CLEAR_DATA = false;
-    public static final boolean SAVE_DATA = false;
-
-    public static Algo ALGO = TREE;
-    public static int ACK_WAIT_TIME = 1100;
-    public static int MAX_SIM_COUNT = 10;
-    public static int NETWORK_SIZE = 1500;
-    public static int MINIMUM_LATENCY = 300;
-    public static int MAXIMUM_LATENCY = 500;
-    public static float DISCONNECT_ODDS = 0.15f;
-    public static int FLOOD_CONNECTIONS = 7;
-    public static int FLOOD_FAN_OUT = 5;
 
     private static Map<WsContext, String> userUsernameMap = new ConcurrentHashMap<>();
     private static Gson gson = new Gson();
@@ -60,28 +50,42 @@ public class Main {
     public static void main(String[] args) {
         if (SAVE_DATA) {
             Util.createCsvFile();
-            Util.log("SIM_ID;ALG;NODE_COUNT;UNINFORMED_COUNT;DISCONNECT_ODDS;DISCONNECT_COUNT;MSG_SENT;AVG_HOP_COUNT;MAX_HOP_COUNT;TOTAL_TIME_MILLIS;FAN_OUT;MIN_LATENCY;MAX_LATENCY;ACK_WAIT_TIME");
-
+            Util.log(CSV_HEADER);
         }
 	    executor = Executors.newSingleThreadScheduledExecutor();
+
+        /*
+            SERVE STATIC FRONTEND FILES ON PORT
+         */
         Javalin app = Javalin.create(config -> {
             config.addStaticFiles(staticFiles -> {
-                staticFiles.hostedPath = "/";                   // change to host files on a subpath, like '/assets'
-                staticFiles.directory = "/public";              // the directory where your files are located
-                staticFiles.skipFileFunction = req -> false;    // you can use this to skip certain files in the dir, based on the HttpServletRequest
+                staticFiles.hostedPath = "/";
+                staticFiles.directory = "/public";
+                staticFiles.skipFileFunction = req -> false;
             });
         }).start(5000);
-        app.ws("/update", ws ->{
 
+        /*
+            RUN WEB SOCKET SERVER FOR FRONTEND-BACKEND COMMUNICATION
+         */
+        app.ws("/update", ws ->{
+            /*
+                CREATE CLIENT ON CONNECTION
+             */
             ws.onConnect(ctx -> {
                 userUsernameMap.put(ctx, "client");
                 System.out.println("User connected to web socket");
             });
+            /*
+                REMOVE CLIENT ON DISCONNECT
+             */
             ws.onClose(ctx -> {
                 String username = userUsernameMap.get(ctx);
                 userUsernameMap.remove(ctx);
             });
-
+            /*
+                RUN SIMULATION ON START COMMAND
+             */
             ws.onMessage(ctx -> {
                 if (ctx.message().equals("start")) run();
             });
@@ -172,7 +176,7 @@ public class Main {
 
     private static void run() {
         int totalSimCount = 0;
-        Algo[] alg = {TREE, Algo.FLOOD};
+        Algo[] alg = {Algo.TREE, Algo.FLOOD};
         int[] networkSizes = {100, 500, 1000, 2000};
         float[] dcOdds = {0f, 0.05f, 0.1f, 0.25f, 0.5f, 0.75f };
         int totalSims = alg.length * networkSizes.length * dcOdds.length * MAX_SIM_COUNT;
@@ -204,7 +208,7 @@ public class Main {
         Thread.sleep(2000);
         int dcCount = 0;
         for (Node n : network) {
-            if (Main.DISCONNECT_ODDS > new Random().nextFloat()) {
+            if (DISCONNECT_ODDS > new Random().nextFloat()) {
                 n.deactivate();
                 dcCount++;
             }
@@ -237,7 +241,7 @@ public class Main {
                 avgHops,
                 maxHop,
                 t1 - t0,
-                ALGO == TREE ? 2 : FLOOD_FAN_OUT,
+                ALGO == Algo.TREE ? 2 : FLOOD_FAN_OUT,
                 MINIMUM_LATENCY,
                 MAXIMUM_LATENCY,
                 ACK_WAIT_TIME

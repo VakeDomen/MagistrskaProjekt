@@ -8,6 +8,9 @@ import com.vakedomen.helpers.Util;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static com.vakedomen.config.Flood.FLOOD_FAN_OUT;
+import static com.vakedomen.config.Tree.ACK_WAIT_TIME;
+
 public class Node {
     private String id;
     // used in TREE algorithm
@@ -129,7 +132,7 @@ public class Node {
             Message message2 = new Message(message.getId(), message.getGenerator(), recipients.getThird(), Message.Type.DATA, message.getHop() + 1);
             sendMessage(neighbour, message2, true);
             Runnable task = () -> checkAck(neighbour, recipients.getThird(), message2);
-            Main.executor.schedule(task, Main.ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
+            Main.executor.schedule(task, ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
         }
 
 
@@ -220,10 +223,10 @@ public class Node {
 
     private List<Node> getReceiversFlood() {
         int index = new Random().nextInt(neighbours.size());
-        if (index <= neighbours.size() - Main.FLOOD_FAN_OUT) {
-            return neighbours.subList(index, index + Main.FLOOD_FAN_OUT);
+        if (index <= neighbours.size() - FLOOD_FAN_OUT) {
+            return neighbours.subList(index, index + FLOOD_FAN_OUT);
         }
-        int diff = index - (neighbours.size() - Main.FLOOD_FAN_OUT);
+        int diff = index - (neighbours.size() - FLOOD_FAN_OUT);
         List<Node> out = neighbours.subList(index, neighbours.size());
         out.addAll(neighbours.subList(0, diff));
         return out;
@@ -245,8 +248,8 @@ public class Node {
         sendMessage(recipients.getSecond(), message1, true);
         Runnable task0 = () -> checkAck(recipients.getFirst(), "0", message0);
         Runnable task1 = () -> checkAck(recipients.getSecond(), "1", message1);
-        Main.executor.schedule(task0, Main.ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
-        Main.executor.schedule(task1, Main.ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
+        Main.executor.schedule(task0, ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
+        Main.executor.schedule(task1, ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
         inform(
             new Message(messageHash, this, "", Message.Type.DATA, 0),
                 this
