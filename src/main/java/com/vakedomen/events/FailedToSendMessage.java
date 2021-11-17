@@ -1,20 +1,19 @@
 package com.vakedomen.events;
 
-import com.vakedomen.Node;
+import com.vakedomen.core.Node;
 
-public class MessageSentEvent extends Event {
-
+public class FailedToSendMessage extends Event {
     private String source;
     private String destination;
 
-    public MessageSentEvent(String source, String destination) {
-        super("message_sent");
+    public FailedToSendMessage(String source, String destination) {
+        super("message_not_sent");
         this.source = source;
         this.destination = destination;
     }
 
-    public MessageSentEvent(Node source, Node destination) {
-        super("message_sent");
+    public FailedToSendMessage(Node source, Node destination) {
+        super("message_not_sent");
         this.source = source.getId();
         this.destination = destination.getId();
     }

@@ -1,7 +1,7 @@
 package com.vakedomen.helpers;
 
 import com.vakedomen.Main;
-import com.vakedomen.Node;
+import com.vakedomen.core.Node;
 
 import java.io.*;
 import java.util.ArrayList;

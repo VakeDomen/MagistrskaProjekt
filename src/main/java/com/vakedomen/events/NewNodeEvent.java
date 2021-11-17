@@ -1,6 +1,6 @@
 package com.vakedomen.events;
 
-import com.vakedomen.Node;
+import com.vakedomen.core.Node;
 
 public class NewNodeEvent extends Event {
 

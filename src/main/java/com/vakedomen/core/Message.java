@@ -1,4 +1,4 @@
-package com.vakedomen;
+package com.vakedomen.core;
 
 import com.vakedomen.helpers.Util;
 

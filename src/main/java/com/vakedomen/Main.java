@@ -1,5 +1,6 @@
 package com.vakedomen;
 import com.google.gson.*;
+import com.vakedomen.core.Node;
 import com.vakedomen.events.*;
 import com.vakedomen.helpers.Util;
 import io.javalin.Javalin;
@@ -14,6 +15,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
+import static com.vakedomen.Main.Algo.TREE;
+
 public class Main {
 
     public static final String FILE_NAME = "data.csv";
@@ -26,7 +29,7 @@ public class Main {
     public static final boolean CLEAR_DATA = false;
     public static final boolean SAVE_DATA = false;
 
-    public static Algo ALGO = Algo.TREE;
+    public static Algo ALGO = TREE;
     public static int ACK_WAIT_TIME = 1100;
     public static int MAX_SIM_COUNT = 10;
     public static int NETWORK_SIZE = 1500;
@@ -62,7 +65,11 @@ public class Main {
         }
 	    executor = Executors.newSingleThreadScheduledExecutor();
         Javalin app = Javalin.create(config -> {
-            config.addStaticFiles("resources/public");
+            config.addStaticFiles(staticFiles -> {
+                staticFiles.hostedPath = "/";                   // change to host files on a subpath, like '/assets'
+                staticFiles.directory = "/public";              // the directory where your files are located
+                staticFiles.skipFileFunction = req -> false;    // you can use this to skip certain files in the dir, based on the HttpServletRequest
+            });
         }).start(5000);
         app.ws("/update", ws ->{
 
@@ -165,7 +172,7 @@ public class Main {
 
     private static void run() {
         int totalSimCount = 0;
-        Algo[] alg = {Algo.TREE, Algo.FLOOD};
+        Algo[] alg = {TREE, Algo.FLOOD};
         int[] networkSizes = {100, 500, 1000, 2000};
         float[] dcOdds = {0f, 0.05f, 0.1f, 0.25f, 0.5f, 0.75f };
         int totalSims = alg.length * networkSizes.length * dcOdds.length * MAX_SIM_COUNT;
@@ -230,7 +237,7 @@ public class Main {
                 avgHops,
                 maxHop,
                 t1 - t0,
-                ALGO == Algo.TREE ? 2 : FLOOD_FAN_OUT,
+                ALGO == TREE ? 2 : FLOOD_FAN_OUT,
                 MINIMUM_LATENCY,
                 MAXIMUM_LATENCY,
                 ACK_WAIT_TIME
