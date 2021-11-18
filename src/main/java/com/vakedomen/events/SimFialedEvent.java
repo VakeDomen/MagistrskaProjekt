@@ -1,5 +1,7 @@
 package com.vakedomen.events;
 
+import com.vakedomen.core.Event;
+
 public class SimFialedEvent extends Event {
     int simNumber;
     int uninformed;

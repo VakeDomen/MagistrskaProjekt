@@ -1,6 +1,7 @@
 package com.vakedomen.core;
 
 import com.vakedomen.Main;
+import com.vakedomen.config.SimulationConfig;
 import com.vakedomen.events.*;
 import com.vakedomen.helpers.Triple;
 import com.vakedomen.helpers.Util;
@@ -12,6 +13,8 @@ import static com.vakedomen.config.Flood.FLOOD_FAN_OUT;
 import static com.vakedomen.config.Tree.ACK_WAIT_TIME;
 
 public class Node {
+    private SimulationConfig conf;
+
     private String id;
     // used in TREE algorithm
     private ArrayList<Node> network;
@@ -24,12 +27,13 @@ public class Node {
     private ArrayList<Message> ackQue = new ArrayList<>();
     private ArrayList<String> messageHashes = new ArrayList<>();
 
-    public Node(String node_id, int simCount) {
+    public Node(String node_id, int simCount, SimulationConfig conf) {
         this.id = node_id;
         this.informed = false;
         this.active = true;
         this.simCount = simCount;
         this.neighbours = new ArrayList<>();
+        this.conf = conf;
     }
 
     public String getId() {
@@ -41,7 +45,7 @@ public class Node {
     }
 
     public void digestMessage(Message message, Node sender, boolean requireAck) {
-        switch (Main.ALGO){
+        switch (this.conf.getAlgo()){
             case TREE:
                 digestTree(message, sender, requireAck);
                 break;
@@ -49,7 +53,7 @@ public class Node {
                 digestFlood(message, sender);
                 break;
             default:
-                throw new IllegalStateException("Unexpected value: " + Main.ALGO);
+                throw new IllegalStateException("Unexpected value: " + this.conf.getAlgo());
         }
     }
 
@@ -167,7 +171,7 @@ public class Node {
                 Main.maxHop = message.getHop();
             }
         }
-        Main.checkEndPropagation();
+        Main.checkEndPropagation(this.conf.getNetworkSize());
     }
 
     public void sendMessage(Node receiver, final Message message, final boolean requireAck) {
@@ -193,7 +197,7 @@ public class Node {
     }
 
     public void generateMessage() {
-        switch (Main.ALGO){
+        switch (this.conf.getAlgo()){
             case TREE:
                 generateMessageTree();
                 break;
@@ -201,7 +205,7 @@ public class Node {
                 generateMessageFlood();
                 break;
             default:
-                throw new IllegalStateException("Unexpected value: " + Main.ALGO);
+                throw new IllegalStateException("Unexpected value: " + this.conf.getAlgo());
         }
 
     }
@@ -244,12 +248,8 @@ public class Node {
         );
         // Child1, Child2, Neighbour to check
         Triple<Node, Node, String > recipients = Util.calculateRecipients(nodes, "");
-        sendMessage(recipients.getFirst(), message0, true);
-        sendMessage(recipients.getSecond(), message1, true);
-        Runnable task0 = () -> checkAck(recipients.getFirst(), "0", message0);
-        Runnable task1 = () -> checkAck(recipients.getSecond(), "1", message1);
-        Main.executor.schedule(task0, ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
-        Main.executor.schedule(task1, ACK_WAIT_TIME, TimeUnit.MILLISECONDS);
+        sendMessage(recipients.getFirst(), message0, false);
+        sendMessage(recipients.getSecond(), message1, false);
         inform(
             new Message(messageHash, this, "", Message.Type.DATA, 0),
                 this
@@ -276,4 +276,7 @@ public class Node {
         return neighbours;
     }
 
+    public boolean isActive() {
+        return this.active;
+    }
 }

@@ -1,5 +1,6 @@
 package com.vakedomen.events;
 
+import com.vakedomen.core.Event;
 import com.vakedomen.core.Node;
 
 public class FailedToSendMessage extends Event {

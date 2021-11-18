@@ -1,15 +1,29 @@
 package com.vakedomen.config;
 
+import com.vakedomen.core.Enums;
+
 public class Run {
 
     /*
-        SIZE OF THE NETWORK (NUM OF NODES)
-     */
-    public static int NETWORK_SIZE = 1500;
-    /*
         COUNT OF SIMULATIONS TO RUN (FOR EACH CONFIGURATION)
      */
-    public static int MAX_SIM_COUNT = 10;
+    public static int MAX_SIM_COUNT = 1;
+    /*
+        ALGORITHMS TO SIMULATE
+     */
+    public static Enums.Algo[] ALGORITHMS_TO_SIMULATE = {Enums.Algo.TREE, Enums.Algo.FLOOD};
+    /*
+        SIZE OF THE NETWORKS (NUM OF NODES)
+     */
+    public static int[] NETWORK_SIZES_TO_SIMULATE = { 100, 500, 1000, 2000 };
+    /*
+        DISCONNECT ODDS FOR EACH NODE
+     */
+    public static float[] DISCONNECT_ODDS_TO_SIMULATE = { 0f, 0.05f, 0.1f, 0.25f, 0.5f, 0.75f };
+    /*
+        MAXIMUM TIME[ms] CAP FOR A SIMULATION TO COMPLETE
+     */
+    public static final int SIM_TIME_CAP = 60000;
     /*
         MINIMUM LIMIT OF LATENCY FOR ALIVE NODES
      */
@@ -18,10 +32,6 @@ public class Run {
         MAXIMUM LIMIT OF LATENCY FOR ALIVE NODES
      */
     public static int MAXIMUM_LATENCY = 500;
-    /*
-        PROBABILITY OF A RANDOM NODE TO BE OFFLINE
-     */
-    public static float DISCONNECT_ODDS = 0.15f;
     /*
         COLLECT AND SAVE THE SIMULATION DATA
      */

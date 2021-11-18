@@ -1,6 +1,6 @@
 package com.vakedomen.events;
 
-import java.util.List;
+import com.vakedomen.core.Event;
 
 public class LogEvent extends Event {
     String log;

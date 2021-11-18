@@ -107,6 +107,12 @@ public class Util {
         }
     }
 
+    public static <T> T randomElement(ArrayList<T> arrayList) {
+        int index = r.nextInt(arrayList.size());
+        return arrayList.get(index);
+    }
+
+
     public static  void logArg(int simId, Enums.Algo algo, int n, int uninformed, float dbOdds, int dcCount, int nMsg, float avgHop, int maxHop, long totalTime, int fanout, int minLatency, int maxLatency, int ackWaitTime) {
         String[] args = {
                 simId + "",

@@ -1,4 +1,4 @@
-package com.vakedomen.events;
+package com.vakedomen.core;
 
 public class Event {
     private String action;
